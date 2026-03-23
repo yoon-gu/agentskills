@@ -1,4 +1,5 @@
 import React from "react";
+import useBaseUrl from "@docusaurus/useBaseUrl";
 
 export function Note({ children }) {
   return <div className="admonition admonition-note mdx-box">{children}</div>;
@@ -9,13 +10,15 @@ export function Tip({ children }) {
 }
 
 export function Card({ title, href, children }) {
+  const resolvedHref = href && href.startsWith("/") ? useBaseUrl(href) : href;
+
   return (
     <div className="mdx-card">
       {title ? <h3>{title}</h3> : null}
       <div>{children}</div>
-      {href ? (
+      {resolvedHref ? (
         <p>
-          <a href={href}>바로가기</a>
+          <a href={resolvedHref}>바로가기</a>
         </p>
       ) : null}
     </div>
