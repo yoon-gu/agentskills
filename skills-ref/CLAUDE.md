@@ -1,17 +1,17 @@
-# Development
+# 개발
 
-## Code Quality
+## 코드 품질
 
-Format and lint with ruff:
+ruff로 포맷 및 린트:
 
 ```bash
 uv run ruff format .
 uv run ruff check --fix .
 ```
 
-## Testing
+## 테스트
 
-Run tests with pytest:
+pytest로 테스트 실행:
 
 ```bash
 uv run pytest
