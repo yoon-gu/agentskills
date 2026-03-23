@@ -30,6 +30,7 @@ const config = {
           path: "docs",
           routeBasePath: "/",
           sidebarPath: "./sidebars.js",
+          exclude: ["**/README.md", "**/CLAUDE.md", "LICENSE"],
           editUrl: "https://github.com/yoon-gu/agentskills/tree/main/",
         },
         blog: false,
