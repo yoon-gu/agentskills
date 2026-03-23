@@ -1,42 +1,42 @@
 ---
-title: "Overview"
-description: "A simple, open format for giving agents new capabilities and expertise."
+title: "개요"
+description: "에이전트에 새로운 역량과 전문성을 부여하기 위한 단순하고 개방적인 형식입니다."
 ---
 
 import { LogoCarousel } from '/snippets/LogoCarousel.jsx';
 
-Agent Skills are folders of instructions, scripts, and resources that agents can discover and use to do things more accurately and efficiently.
+Agent Skills는 지침, 스크립트, 리소스로 구성된 폴더이며, 에이전트가 이를 탐색하고 활용해 작업을 더 정확하고 효율적으로 수행할 수 있게 합니다.
 
-## Why Agent Skills?
+## 왜 Agent Skills인가요?
 
-Agents are increasingly capable, but often don't have the context they need to do real work reliably. Skills solve this by giving agents access to procedural knowledge and company-, team-, and user-specific context they can load on demand. Agents with access to a set of skills can extend their capabilities based on the task they're working on.
+에이전트의 능력은 빠르게 향상되고 있지만, 실제 업무를 안정적으로 수행하는 데 필요한 컨텍스트가 부족한 경우가 많습니다. 스킬은 에이전트가 필요할 때 절차적 지식과 회사, 팀, 사용자 특화 컨텍스트를 불러올 수 있도록 하여 이 문제를 해결합니다. 스킬 세트에 접근할 수 있는 에이전트는 수행 중인 작업에 맞춰 역량을 확장할 수 있습니다.
 
-**For skill authors**: Build capabilities once and deploy them across multiple agent products.
+**스킬 작성자**: 기능을 한 번 구축하면 여러 에이전트 제품에 배포할 수 있습니다.
 
-**For compatible agents**: Support for skills lets end users give agents new capabilities out of the box.
+**호환 에이전트**: 스킬 지원을 통해 최종 사용자가 별도 설정 없이 에이전트에 새로운 기능을 부여할 수 있습니다.
 
-**For teams and enterprises**: Capture organizational knowledge in portable, version-controlled packages.
+**팀과 엔터프라이즈**: 조직 지식을 이식 가능하고 버전 관리되는 패키지로 축적할 수 있습니다.
 
-## What can Agent Skills enable?
+## Agent Skills로 무엇을 할 수 있나요?
 
-- **Domain expertise**: Package specialized knowledge into reusable instructions, from legal review processes to data analysis pipelines.
-- **New capabilities**: Give agents new capabilities (e.g. creating presentations, building MCP servers, analyzing datasets).
-- **Repeatable workflows**: Turn multi-step tasks into consistent and auditable workflows.
-- **Interoperability**: Reuse the same skill across different skills-compatible agent products.
+- **도메인 전문성**: 법률 검토 프로세스부터 데이터 분석 파이프라인까지, 전문 지식을 재사용 가능한 지침으로 패키징합니다.
+- **새로운 기능**: 에이전트에 새로운 기능을 부여합니다(예: 프레젠테이션 생성, MCP 서버 구축, 데이터셋 분석).
+- **반복 가능한 워크플로**: 여러 단계의 작업을 일관되고 감사 가능한 워크플로로 전환합니다.
+- **상호운용성**: 스킬 호환 에이전트 제품 간에 동일한 스킬을 재사용합니다.
 
-## Adoption
+## 도입 현황
 
-Agent Skills are supported by leading AI development tools.
+Agent Skills는 주요 AI 개발 도구에서 지원됩니다.
 
 <LogoCarousel />
 
-## Open development
+## 오픈 개발
 
-The Agent Skills format was originally developed by [Anthropic](https://www.anthropic.com/), released as an open standard, and has been adopted by a growing number of agent products. The standard is open to contributions from the broader ecosystem.
+Agent Skills 형식은 [Anthropic](https://www.anthropic.com/)에서 처음 개발되었고, 이후 개방형 표준으로 공개되어 점점 더 많은 에이전트 제품에서 채택되고 있습니다. 이 표준은 더 넓은 생태계의 기여를 환영합니다.
 
-[View on GitHub](https://github.com/agentskills/agentskills)
+[GitHub에서 보기](https://github.com/agentskills/agentskills)
 
-## Get started
+## 시작하기
 
 <CardGroup cols={3}>
   <Card
@@ -44,34 +44,34 @@ The Agent Skills format was originally developed by [Anthropic](https://www.anth
     icon="lightbulb"
     href="/what-are-skills"
   >
-    Learn about skills, how they work, and why they matter.
+    스킬이 무엇인지, 어떻게 동작하는지, 왜 중요한지 알아보세요.
   </Card>
   <Card
-    title="Specification"
+    title="명세"
     icon="file-code"
     href="/specification"
   >
-    The complete format specification for SKILL.md files.
+    SKILL.md 파일 형식의 전체 명세입니다.
   </Card>
   <Card
-    title="Add skills support"
+    title="스킬 지원 추가"
     icon="gear"
     href="/client-implementation/adding-skills-support"
   >
-    Add skills support to your agent or tool.
+    에이전트나 도구에 스킬 지원을 추가하세요.
   </Card>
   <Card
-    title="Example skills"
+    title="예제 스킬"
     icon="code"
     href="https://github.com/anthropics/skills"
   >
-    Browse example skills on GitHub.
+    GitHub에서 예제 스킬을 살펴보세요.
   </Card>
   <Card
-    title="Reference library"
+    title="레퍼런스 라이브러리"
     icon="wrench"
     href="https://github.com/agentskills/agentskills/tree/main/skills-ref"
   >
-    Validate skills and generate prompt XML.
+    스킬을 검증하고 프롬프트 XML을 생성하세요.
   </Card>
 </CardGroup>
