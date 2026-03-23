@@ -1,133 +1,117 @@
 ---
-title: "Using scripts in skills"
-sidebarTitle: "Using scripts"
-description: "How to run commands and bundle executable scripts in your skills."
+title: "스킬에서 스크립트 사용하기"
+sidebarTitle: "스크립트 사용"
+description: "스킬에서 명령 실행과 실행 스크립트 번들링을 설계하는 방법"
 ---
 
-Skills can instruct agents to run shell commands and bundle reusable scripts in a `scripts/` directory. This guide covers one-off commands, self-contained scripts with their own dependencies, and how to design script interfaces for agentic use.
+스킬은 셸 명령을 직접 실행하도록 지시할 수 있고, `scripts/` 디렉터리에 재사용 가능한 스크립트를 포함할 수 있습니다. 이 가이드는 단발 명령, 자체 의존성을 가진 스크립트, 에이전트 친화적 인터페이스 설계를 다룹니다.
 
-## One-off commands
+## 단발 명령(one-off commands)
 
-When an existing package already does what you need, you can reference it directly in your `SKILL.md` instructions without a `scripts/` directory. Many ecosystems provide tools that auto-resolve dependencies at runtime.
+기존 패키지가 바로 해결해 준다면 `scripts/` 없이 `SKILL.md`에 명령을 직접 적어도 됩니다. 여러 생태계가 런타임 의존성 자동 해결 도구를 제공합니다.
 
 <Tabs sync={false}>
   <Tab title="uvx">
-    [uvx](https://docs.astral.sh/uv/guides/tools/) runs Python packages in isolated environments with aggressive caching. It ships with [uv](https://docs.astral.sh/uv/).
+    [uvx](https://docs.astral.sh/uv/guides/tools/)는 격리 환경에서 Python 패키지를 실행하며 강한 캐시를 사용합니다.
 
     ```bash
     uvx ruff@0.8.0 check .
     uvx black@24.10.0 .
     ```
 
-    - Not bundled with Python — requires a separate install.
-    - Fast. Caches aggressively so repeat runs are near-instant.
+    - Python 기본 포함 아님(별도 설치 필요)
+    - 반복 실행이 매우 빠름
   </Tab>
   <Tab title="pipx">
-    [pipx](https://pipx.pypa.io/) runs Python packages in isolated environments. Available via OS package managers (`apt install pipx`, `brew install pipx`).
+    [pipx](https://pipx.pypa.io/)는 격리 환경에서 Python 패키지를 실행합니다.
 
     ```bash
     pipx run 'black==24.10.0' .
     pipx run 'ruff==0.8.0' check .
     ```
 
-    - Not bundled with Python — requires a separate install.
-    - A mature alternative to `uvx`. While `uvx` has become the standard recommendation, `pipx` remains a reliable option with broader OS package manager availability.
+    - Python 기본 포함 아님
+    - 성숙한 대안, OS 패키지 매니저 가용성이 넓음
   </Tab>
   <Tab title="npx">
-    [npx](https://docs.npmjs.com/cli/commands/npx) runs npm packages, downloading them on demand. It ships with npm (which ships with Node.js).
+    [npx](https://docs.npmjs.com/cli/commands/npx)는 npm 패키지를 필요 시 다운로드/실행합니다.
 
     ```bash
     npx eslint@9 --fix .
     npx create-vite@6 my-app
     ```
 
-    - Bundled with Node.js — no extra install needed.
-    - Downloads the package, runs it, and caches it for future use.
-    - Pin versions with `npx package@version` for reproducibility.
+    - Node.js 환경에서 바로 사용 가능
+    - 버전 고정 권장
   </Tab>
   <Tab title="bunx">
-    [bunx](https://bun.sh/docs/cli/bunx) is Bun's equivalent of `npx`. It ships with [Bun](https://bun.sh/).
+    [bunx](https://bun.sh/docs/cli/bunx)는 Bun 환경의 `npx` 대응 도구입니다.
 
     ```bash
     bunx eslint@9 --fix .
     bunx create-vite@6 my-app
     ```
-
-    - Drop-in replacement for `npx` in Bun-based environments.
-    - Only appropriate when the user's environment has Bun rather than Node.js.
   </Tab>
   <Tab title="deno run">
-    [deno run](https://docs.deno.com/runtime/reference/cli/run/) runs scripts directly from URLs or specifiers. It ships with [Deno](https://deno.com/).
+    [deno run](https://docs.deno.com/runtime/reference/cli/run/)은 URL/specifier에서 직접 실행합니다.
 
     ```bash
     deno run npm:create-vite@6 my-app
     deno run --allow-read npm:eslint@9 -- --fix .
     ```
 
-    - Permission flags (`--allow-read`, etc.) are required for filesystem/network access.
-    - Use `--` to separate Deno flags from the tool's own flags.
+    - 권한 플래그 필요
+    - `--`로 Deno 플래그와 대상 툴 플래그 분리
   </Tab>
   <Tab title="go run">
-    [go run](https://pkg.go.dev/cmd/go#hdr-Compile_and_run_Go_program) compiles and runs Go packages directly. It is built into the `go` command.
+    [go run](https://pkg.go.dev/cmd/go#hdr-Compile_and_run_Go_program)은 Go 패키지를 직접 컴파일/실행합니다.
 
     ```bash
     go run golang.org/x/tools/cmd/goimports@v0.28.0 .
     go run github.com/golangci/golangci-lint/cmd/golangci-lint@v1.62.0 run
     ```
-
-    - Built into Go — no extra tooling needed.
-    - Pin versions or use `@latest` to make the command explicit.
   </Tab>
 </Tabs>
 
-**Tips for one-off commands in skills:**
+단발 명령 작성 팁:
 
-- **Pin versions** (e.g., `npx eslint@9.0.0`) so the command behaves the same over time.
-- **State prerequisites** in your `SKILL.md` (e.g., "Requires Node.js 18+") rather than assuming the agent's environment has them. For runtime-level requirements, use the [`compatibility` frontmatter field](/specification#compatibility-field).
-- **Move complex commands into scripts.** A one-off command works well when you're invoking a tool with a few flags. When a command grows complex enough that it's hard to get right on the first try, a tested script in `scripts/` is more reliable.
+- 재현성을 위해 버전 고정
+- 환경 전제(예: Node.js 18+)를 `SKILL.md`에 명시
+- 명령이 복잡해지면 `scripts/`로 이동
 
-## Referencing scripts from `SKILL.md`
+## `SKILL.md`에서 스크립트 참조
 
-Use **relative paths from the skill directory root** to reference bundled files. The agent resolves these paths automatically — no absolute paths needed.
-
-List available scripts in your `SKILL.md` so the agent knows they exist:
+스킬 디렉터리 루트 기준 **상대 경로**를 사용하세요.
 
 ```markdown SKILL.md
 ## Available scripts
-
-- **`scripts/validate.sh`** — Validates configuration files
-- **`scripts/process.py`** — Processes input data
+- **`scripts/validate.sh`** — 설정 파일 검증
+- **`scripts/process.py`** — 입력 데이터 처리
 ```
-
-Then instruct the agent to run them:
 
 ````markdown SKILL.md
 ## Workflow
-
-1. Run the validation script:
+1. 검증:
    ```bash
    bash scripts/validate.sh "$INPUT_FILE"
    ```
-
-2. Process the results:
+2. 처리:
    ```bash
    python3 scripts/process.py --input results.json
    ```
 ````
 
 <Note>
-The same relative-path convention works in support files like `references/*.md` — script execution paths (in code blocks) are relative to the **skill directory root**, because the agent runs commands from there.
+`references/*.md` 같은 지원 문서에서도 같은 상대 경로 규칙을 적용하세요.
 </Note>
 
-## Self-contained scripts
+## 자체 완결(self-contained) 스크립트
 
-When you need reusable logic, bundle a script in `scripts/` that declares its own dependencies inline. The agent can run the script with a single command — no separate manifest file or install step required.
-
-Several languages support inline dependency declarations:
+재사용 로직은 `scripts/`에 넣고, 의존성을 스크립트 내부에 선언하면 실행이 단순해집니다.
 
 <Tabs sync={false}>
   <Tab title="Python">
-    [PEP 723](https://peps.python.org/pep-0723/) defines a standard format for inline script metadata. Declare dependencies in a TOML block inside `# ///` markers:
+    [PEP 723](https://peps.python.org/pep-0723/)으로 스크립트 내부 TOML 메타데이터에 의존성을 선언할 수 있습니다.
 
     ```python scripts/extract.py
     # /// script
@@ -135,164 +119,116 @@ Several languages support inline dependency declarations:
     #   "beautifulsoup4",
     # ]
     # ///
-
     from bs4 import BeautifulSoup
-
-    html = '<html><body><h1>Welcome</h1><p class="info">This is a test.</p></body></html>'
-    print(BeautifulSoup(html, "html.parser").select_one("p.info").get_text())
     ```
-
-    Run with [uv](https://docs.astral.sh/uv/) (recommended):
 
     ```bash
     uv run scripts/extract.py
     ```
 
-    `uv run` creates an isolated environment, installs the declared dependencies, and runs the script. [pipx](https://pipx.pypa.io/) (`pipx run scripts/extract.py`) also supports PEP 723.
-
-    - Pin versions with [PEP 508](https://peps.python.org/pep-0508/) specifiers: `"beautifulsoup4>=4.12,<5"`.
-    - Use `requires-python` to constrain the Python version.
-    - Use `uv lock --script` to create a lockfile for full reproducibility.
+    - PEP 508 버전 제약 사용 가능
+    - `requires-python` 지정 가능
+    - `uv lock --script`로 재현성 강화
   </Tab>
   <Tab title="Deno">
-    Deno's `npm:` and `jsr:` import specifiers make every script self-contained by default:
+    `npm:`/`jsr:` import를 활용해 스크립트 단위로 의존성 관리가 가능합니다.
 
     ```typescript scripts/extract.ts
     #!/usr/bin/env -S deno run
-
     import * as cheerio from "npm:cheerio@1.0.0";
-
-    const html = `<html><body><h1>Welcome</h1><p class="info">This is a test.</p></body></html>`;
-    const $ = cheerio.load(html);
-    console.log($("p.info").text());
     ```
 
     ```bash
     deno run scripts/extract.ts
     ```
-
-    - Use `npm:` for npm packages, `jsr:` for Deno-native packages.
-    - Version specifiers follow semver: `@1.0.0` (exact), `@^1.0.0` (compatible).
-    - Dependencies are cached globally. Use `--reload` to force re-fetch.
-    - Packages with native addons (node-gyp) may not work — packages that ship pre-built binaries work best.
   </Tab>
   <Tab title="Bun">
-    Bun auto-installs missing packages at runtime when no `node_modules` directory is found. Pin versions directly in the import path:
+    `node_modules`가 없으면 런타임 자동 설치를 활용할 수 있습니다.
 
     ```typescript scripts/extract.ts
     #!/usr/bin/env bun
-
     import * as cheerio from "cheerio@1.0.0";
-
-    const html = `<html><body><h1>Welcome</h1><p class="info">This is a test.</p></body></html>`;
-    const $ = cheerio.load(html);
-    console.log($("p.info").text());
     ```
 
     ```bash
     bun run scripts/extract.ts
     ```
-
-    - No `package.json` or `node_modules` needed. TypeScript works natively.
-    - Packages are cached globally. First run downloads; subsequent runs are near-instant.
-    - If a `node_modules` directory exists anywhere up the directory tree, auto-install is disabled and Bun falls back to standard Node.js resolution.
   </Tab>
   <Tab title="Ruby">
-    Bundler ships with Ruby since 2.6. Use `bundler/inline` to declare gems directly in the script:
+    `bundler/inline`으로 스크립트 내부에 gem 의존성을 선언할 수 있습니다.
 
     ```ruby scripts/extract.rb
     require 'bundler/inline'
-
     gemfile do
       source 'https://rubygems.org'
       gem 'nokogiri'
     end
-
-    html = '<html><body><h1>Welcome</h1><p class="info">This is a test.</p></body></html>'
-    doc = Nokogiri::HTML(html)
-    puts doc.at_css('p.info').text
     ```
 
     ```bash
     ruby scripts/extract.rb
     ```
-
-    - Pin versions explicitly (`gem 'nokogiri', '~> 1.16'`) — there is no lockfile.
-    - An existing `Gemfile` or `BUNDLE_GEMFILE` env var in the working directory can interfere.
   </Tab>
 </Tabs>
 
-## Designing scripts for agentic use
+## 에이전트 친화적 스크립트 설계
 
-When an agent runs your script, it reads stdout and stderr to decide what to do next. A few design choices make scripts dramatically easier for agents to use.
+에이전트는 stdout/stderr를 읽어 다음 행동을 결정합니다. 아래 원칙이 특히 중요합니다.
 
-### Avoid interactive prompts
+### 대화형 입력 금지
 
-This is a hard requirement of the agent execution environment. Agents operate in non-interactive shells — they cannot respond to TTY prompts, password dialogs, or confirmation menus. A script that blocks on interactive input will hang indefinitely.
-
-Accept all input via command-line flags, environment variables, or stdin:
+에이전트 실행은 비대화형 셸입니다. TTY 프롬프트/확인창/비밀번호 입력 대기는 멈춤(hang)을 유발합니다.
 
 ```
-# Bad: hangs waiting for input
+# Bad
 $ python scripts/deploy.py
 Target environment: _
 
-# Good: clear error with guidance
+# Good
 $ python scripts/deploy.py
 Error: --env is required. Options: development, staging, production.
 Usage: python scripts/deploy.py --env staging --tag v1.2.3
 ```
 
-### Document usage with `--help`
+### `--help`를 충실히 제공
 
-`--help` output is the primary way an agent learns your script's interface. Include a brief description, available flags, and usage examples:
+`--help`는 에이전트가 인터페이스를 학습하는 1차 정보입니다. 옵션, 기본값, 예시를 간결히 포함하세요.
 
 ```
 Usage: scripts/process.py [OPTIONS] INPUT_FILE
-
-Process input data and produce a summary report.
-
 Options:
-  --format FORMAT    Output format: json, csv, table (default: json)
-  --output FILE      Write output to FILE instead of stdout
-  --verbose          Print progress to stderr
-
+  --format FORMAT
+  --output FILE
+  --verbose
 Examples:
   scripts/process.py data.csv
-  scripts/process.py --format csv --output report.csv data.csv
 ```
 
-Keep it concise — the output enters the agent's context window alongside everything else it's working with.
+### 도움이 되는 오류 메시지
 
-### Write helpful error messages
-
-When an agent gets an error, the message directly shapes its next attempt. An opaque "Error: invalid input" wastes a turn. Instead, say what went wrong, what was expected, and what to try:
+단순 "invalid input" 대신, 무엇이 잘못됐고 어떤 값을 기대하는지 알려주세요.
 
 ```
 Error: --format must be one of: json, csv, table.
        Received: "xml"
 ```
 
-### Use structured output
+### 구조화 출력 사용
 
-Prefer structured formats — JSON, CSV, TSV — over free-form text. Structured formats can be consumed by both the agent and standard tools (`jq`, `cut`, `awk`), making your script composable in pipelines.
+자유 텍스트보다 JSON/CSV/TSV 같은 구조화 포맷이 파이프라인 결합성과 자동 처리가 좋습니다.
 
 ```
-# Whitespace-aligned — hard to parse programmatically
-NAME          STATUS    CREATED
-my-service    running   2025-01-15
-
-# Delimited — unambiguous field boundaries
+# Good
 {"name": "my-service", "status": "running", "created": "2025-01-15"}
 ```
 
-**Separate data from diagnostics:** send structured data to stdout and progress messages, warnings, and other diagnostics to stderr. This lets the agent capture clean, parseable output while still having access to diagnostic information when needed.
+데이터는 stdout, 진행 로그/경고/진단은 stderr로 분리하세요.
 
-### Further considerations
+### 추가 권장사항
 
-- **Idempotency.** Agents may retry commands. "Create if not exists" is safer than "create and fail on duplicate."
-- **Input constraints.** Reject ambiguous input with a clear error rather than guessing. Use enums and closed sets where possible.
-- **Dry-run support.** For destructive or stateful operations, a `--dry-run` flag lets the agent preview what will happen.
-- **Meaningful exit codes.** Use distinct exit codes for different failure types (not found, invalid arguments, auth failure) and document them in your `--help` output so the agent knows what each code means.
-- **Safe defaults.** Consider whether destructive operations should require explicit confirmation flags (`--confirm`, `--force`) or other safeguards appropriate to the risk level.
-- **Predictable output size.** Many agent harnesses automatically truncate tool output beyond a threshold (e.g., 10-30K characters), potentially losing critical information. If your script might produce large output, default to a summary or a reasonable limit, and support flags like `--offset` so the agent can request more information when needed. Alternatively, if output is large and not amenable to pagination, require agents to pass an `--output` flag that specifies either an output file or `-` to explicitly opt in to stdout.
+- **멱등성**: 재시도에 안전하게 설계
+- **입력 제약**: 모호 입력은 추측하지 말고 명확히 거절
+- **dry-run**: 파괴적 작업에 `--dry-run` 지원
+- **의미 있는 종료 코드**: 실패 유형별 코드 분리 및 `--help` 문서화
+- **안전한 기본값**: 파괴적 작업은 `--confirm`/`--force` 등 보호 장치
+- **출력 크기 제어**: 요약/limit/offset/출력 파일 옵션으로 과대 출력 잘림 방지
