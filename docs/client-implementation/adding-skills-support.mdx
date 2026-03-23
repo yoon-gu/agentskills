@@ -1,168 +1,152 @@
 ---
-title: "How to add skills support to your agent"
-sidebarTitle: "Adding skills support"
-description: "A guide for adding Agent Skills support to an AI agent or development tool."
+title: "에이전트에 스킬 지원 추가하기"
+sidebarTitle: "스킬 지원 추가"
+description: "AI 에이전트 또는 개발 도구에 Agent Skills를 통합하는 방법"
 ---
 
-This guide walks through how to add Agent Skills support to an AI agent or development tool. It covers the full lifecycle: discovering skills, telling the model about them, loading their content into context, and keeping that content effective over time.
+이 가이드는 AI 에이전트/개발 도구에 Agent Skills를 통합하는 전체 흐름을 설명합니다. 핵심은 동일합니다: 스킬 탐색, 모델에 공개, 활성화 시 본문 로드, 세션 동안 컨텍스트 유지.
 
-The core integration is the same regardless of your agent's architecture. The implementation details vary based on two factors:
+아키텍처가 달라도 통합 원리는 같습니다. 차이는 주로 아래 두 가지입니다.
 
-- **Where do skills live?** A locally-running agent can scan the user's filesystem for skill directories. A cloud-hosted or sandboxed agent will need an alternative discovery mechanism — an API, a remote registry, or bundled assets.
-- **How does the model access skill content?** If the model has file-reading capabilities, it can read `SKILL.md` files directly. Otherwise, you'll provide a dedicated tool or inject skill content into the prompt programmatically.
+- **스킬 저장 위치**: 로컬 에이전트는 파일시스템 스캔이 가능하지만, 클라우드/샌드박스 환경은 API/레지스트리/번들 방식이 필요합니다.
+- **모델의 콘텐츠 접근 방식**: 모델이 파일을 읽을 수 있으면 `SKILL.md`를 직접 로드하고, 그렇지 않다면 전용 활성화 도구 또는 프롬프트 주입이 필요합니다.
 
-The guide notes where these differences matter. You don't need to support every scenario — follow the path that fits your agent.
+**사전 지식**: [Agent Skills 명세](/specification) (`SKILL.md` 형식, frontmatter, 디렉터리 규칙)
 
-**Prerequisites**: Familiarity with the [Agent Skills specification](/specification), which defines the `SKILL.md` file format, frontmatter fields, and directory conventions.
+## 핵심 원칙: 점진적 공개
 
-## The core principle: progressive disclosure
+스킬 호환 에이전트는 같은 3단계 로딩 전략을 따릅니다.
 
-Every skills-compatible agent follows the same three-tier loading strategy:
+| 단계 | 로딩 내용 | 시점 | 토큰 비용 |
+|------|-----------|------|-----------|
+| 1. 카탈로그 | 이름 + 설명 | 세션 시작 | 스킬당 약 50~100 |
+| 2. 지침 | `SKILL.md` 본문 | 스킬 활성화 시 | 권장 5000 미만 |
+| 3. 리소스 | scripts/references/assets | 지침에서 참조 시 | 가변 |
 
-| Tier | What's loaded | When | Token cost |
-|------|--------------|------|------------|
-| 1. Catalog | Name + description | Session start | ~50-100 tokens per skill |
-| 2. Instructions | Full `SKILL.md` body | When the skill is activated | &lt;5000 tokens (recommended) |
-| 3. Resources | Scripts, references, assets | When the instructions reference them | Varies |
+즉, 모든 스킬 본문을 선로딩하지 않고 필요한 것만 로드해 기본 컨텍스트를 작게 유지합니다.
 
-The model sees the catalog from the start, so it knows what skills are available. When it decides a skill is relevant, it loads the full instructions. If those instructions reference supporting files, the model loads them individually as needed.
+## 1단계: 스킬 탐색
 
-This keeps the base context small while giving the model access to specialized knowledge on demand. An agent with 20 installed skills doesn't pay the token cost of 20 full instruction sets upfront — only the ones actually used in a given conversation.
+세션 시작 시 사용 가능한 스킬을 찾아 메타데이터를 읽습니다.
 
-## Step 1: Discover skills
+### 스캔 경로
 
-At session startup, find all available skills and load their metadata.
+환경에 따라 다르지만 로컬 에이전트는 보통 다음 범위를 스캔합니다.
 
-### Where to scan
+- **프로젝트 범위**: 현재 저장소 전용 스킬
+- **사용자 범위**: 사용자 전역 스킬
 
-Which directories you scan depends on your agent's environment. Most locally-running agents scan at least two scopes:
+또한 각 범위에서 클라이언트 전용 경로 + 공용 관례 경로를 함께 스캔하는 것이 좋습니다.
 
-- **Project-level** (relative to the working directory): Skills specific to a project or repository.
-- **User-level** (relative to the home directory): Skills available across all projects for a given user.
+| 범위 | 경로 | 목적 |
+|------|------|------|
+| Project | `<project>/.<your-client>/skills/` | 클라이언트 전용 |
+| Project | `<project>/.agents/skills/` | 클라이언트 간 호환 |
+| User | `~/.<your-client>/skills/` | 클라이언트 전용 |
+| User | `~/.agents/skills/` | 클라이언트 간 호환 |
 
-Other scopes are possible too — for example, organization-wide skills deployed by an admin, or skills bundled with the agent itself. The right set of scopes depends on your agent's deployment model.
-
-Within each scope, consider scanning both a **client-specific directory** and the **`.agents/skills/` convention**:
-
-| Scope | Path | Purpose |
-|-------|------|---------|
-| Project | `<project>/.<your-client>/skills/` | Your client's native location |
-| Project | `<project>/.agents/skills/` | Cross-client interoperability |
-| User | `~/.<your-client>/skills/` | Your client's native location |
-| User | `~/.agents/skills/` | Cross-client interoperability |
-
-The `.agents/skills/` paths have emerged as a widely-adopted convention for cross-client skill sharing. While the Agent Skills specification does not mandate where skill directories live (it only defines what goes inside them), scanning `.agents/skills/` means skills installed by other compliant clients are automatically visible to yours, and vice versa.
+`.agents/skills/`는 교차 클라이언트 공유 관례로 널리 사용됩니다.
 
 <Note>
-Some implementations also scan `.claude/skills/` (both project-level and user-level) for pragmatic compatibility, since many existing skills are installed there. Other additional locations include ancestor directories up to the git root (useful for monorepos), [XDG](https://specifications.freedesktop.org/basedir-spec/latest/) config directories, and user-configured paths.
+실무에서는 `.claude/skills/`, git 루트까지의 상위 디렉터리(모노레포), XDG config 경로, 사용자 지정 경로를 추가로 스캔하기도 합니다.
 </Note>
 
-### What to scan for
+### 탐색 대상
 
-Within each skills directory, look for **subdirectories containing a file named exactly `SKILL.md`**:
+스킬 디렉터리 내에서 **`SKILL.md` 파일을 정확히 포함한 하위 디렉터리**를 스킬로 간주합니다.
 
 ```
 ~/.agents/skills/
 ├── pdf-processing/
-│   ├── SKILL.md          ← discovered
+│   ├── SKILL.md          ← 탐색됨
 │   └── scripts/
 │       └── extract.py
 ├── data-analysis/
-│   └── SKILL.md          ← discovered
-└── README.md             ← ignored (not a skill directory)
+│   └── SKILL.md          ← 탐색됨
+└── README.md             ← 무시됨
 ```
 
-Practical scanning rules:
+권장 규칙:
 
-- Skip directories that won't contain skills, such as `.git/` and `node_modules/`
-- Optionally respect `.gitignore` to avoid scanning build artifacts
-- Set reasonable bounds (e.g., max depth of 4-6 levels, max 2000 directories) to prevent runaway scanning in large directory trees
+- `.git/`, `node_modules/` 등 불필요 디렉터리 제외
+- 필요 시 `.gitignore` 반영
+- 최대 깊이/최대 디렉터리 수 제한으로 과도한 스캔 방지
 
-### Handling name collisions
+### 이름 충돌 처리
 
-When two skills share the same `name`, apply a deterministic precedence rule.
+동일한 `name`이 여러 개 발견되면 결정 규칙을 고정하세요.
 
-The universal convention across existing implementations: **project-level skills override user-level skills.**
+- 공통 관례: **프로젝트 스킬이 사용자 스킬보다 우선**
+- 같은 범위 내부 충돌: first-found 또는 last-found 중 하나를 고정
+- 충돌 시 경고 로그 출력(섀도잉 안내)
 
-Within the same scope (e.g., two skills named `code-review` found under both `<project>/.agents/skills/` and `<project>/.<your-client>/skills/`), either first-found or last-found is acceptable — pick one and be consistent. Log a warning when a collision occurs so the user knows a skill was shadowed.
+### 신뢰(Trust) 고려
 
-### Trust considerations
+프로젝트 스킬은 불신 저장소에서 유입될 수 있으므로, 프로젝트 폴더가 신뢰 상태일 때만 로드하도록 게이트를 두는 것이 안전합니다.
 
-Project-level skills come from the repository being worked on, which may be untrusted (e.g., a freshly cloned open-source project). Consider gating project-level skill loading on a trust check — only load them if the user has marked the project folder as trusted. This prevents untrusted repositories from silently injecting instructions into the agent's context.
+### 클라우드/샌드박스 환경
 
-### Cloud-hosted and sandboxed agents
+로컬 파일시스템 접근이 없으므로 범위별 전략이 필요합니다.
 
-If your agent runs in a container or on a remote server, it won't have access to the user's local filesystem. Discovery needs to work differently depending on the skill scope:
+- 프로젝트 스킬: 클론된 리포지토리 내부에서 함께 탐색 가능
+- 사용자/조직 스킬: 외부 소스(설정 리포, URL/패키지, 웹 업로드 등)로 프로비저닝
+- 내장 스킬: 배포 아티팩트에 정적 번들
 
-- **Project-level skills** are often the easiest case. If the agent operates on a cloned repository (even inside a sandbox), project-level skills travel with the code and can be scanned from the repo's directory tree.
-- **User-level and organization-level skills** don't exist in the sandbox. You'll need to provision them from an external source — for example, cloning a configuration repository, accepting skill URLs or packages through your agent's settings, or letting users upload skill directories through a web UI.
-- **Built-in skills** can be packaged as static assets within the agent's deployment artifact, making them available in every session without external fetching.
+## 2단계: `SKILL.md` 파싱
 
-Once skills are available to the agent, the rest of the lifecycle — parsing, disclosure, activation — works the same.
+각 `SKILL.md`에서 frontmatter와 본문을 추출합니다.
 
-## Step 2: Parse `SKILL.md` files
+### frontmatter 추출
 
-For each discovered `SKILL.md`, extract the metadata and body content.
+`SKILL.md`는 `---`로 감싼 YAML frontmatter + 그 뒤 Markdown 본문으로 구성됩니다.
 
-### Frontmatter extraction
+1. 파일 시작 `---`와 종료 `---` 찾기
+2. YAML 파싱 (`name`, `description` 필수 + 선택 필드)
+3. 종료 구분자 이후 텍스트를 본문으로 사용
 
-A `SKILL.md` file has two parts: YAML frontmatter between `---` delimiters, and a markdown body after the closing delimiter. To parse:
+### 잘못된 YAML 처리
 
-1. Find the opening `---` at the start of the file and the closing `---` after it.
-2. Parse the YAML block between them. Extract `name` and `description` (required), plus any optional fields.
-3. Everything after the closing `---`, trimmed, is the skill's body content.
+다른 클라이언트에서 만든 스킬은 느슨한 YAML을 포함할 수 있습니다(예: 콜론이 있는 미인용 값). 인용 보정/블록 스칼라 변환 후 재시도 같은 fallback을 두면 호환성이 좋아집니다.
 
-See the [specification](/specification) for the full set of frontmatter fields and their constraints.
+### 느슨한 검증 정책
 
-### Handling malformed YAML
+가능하면 경고 후 로드하세요.
 
-Skill files authored for other clients may contain technically invalid YAML that their parsers happen to accept. The most common issue is unquoted values containing colons:
+- 디렉터리명과 `name` 불일치: 경고 + 로드
+- `name` 길이 초과: 경고 + 로드
+- `description` 없음/빈값: 스킵 + 오류 로그
+- YAML 완전 파싱 실패: 스킵 + 오류 로그
 
-```yaml
-# Technically invalid YAML — the colon breaks parsing
-description: Use this skill when: the user asks about PDFs
-```
-
-Consider a fallback that wraps such values in quotes or converts them to YAML block scalars before retrying. This improves cross-client compatibility at minimal cost.
-
-### Lenient validation
-
-Warn on issues but still load the skill when possible:
-
-- Name doesn't match the parent directory name → warn, load anyway
-- Name exceeds 64 characters → warn, load anyway
-- Description is missing or empty → skip the skill (a description is essential for disclosure), log the error
-- YAML is completely unparseable → skip the skill, log the error
-
-Record diagnostics so they can be surfaced to the user (in a debug command, log file, or UI), but don't block skill loading on cosmetic issues.
+진단 정보는 로그/디버그 명령/UI에서 사용자에게 노출할 수 있게 저장하세요.
 
 <Note>
-The [specification](/specification) defines strict constraints on the `name` field (matching the parent directory, character set, max length). The lenient approach above deliberately relaxes these to improve compatibility with skills authored for other clients.
+명세는 `name`에 엄격한 제약을 둡니다. 위 정책은 교차 클라이언트 호환성 강화를 위한 실용적 완화입니다.
 </Note>
 
-### What to store
+### 저장할 데이터
 
-At minimum, each skill record needs three fields:
+최소 필드:
 
-| Field | Description |
-|-------|-------------|
-| `name` | From frontmatter |
-| `description` | From frontmatter |
-| `location` | Absolute path to the `SKILL.md` file |
+| 필드 | 설명 |
+|------|------|
+| `name` | frontmatter |
+| `description` | frontmatter |
+| `location` | `SKILL.md` 절대 경로 |
 
-Store these in an in-memory map keyed by `name` for fast lookup during activation.
+활성화 시 빠른 조회를 위해 `name` 키 맵으로 저장하세요.
 
-You can also store the **body** (the markdown content after the frontmatter) at discovery time, or read it from `location` at activation time. Storing it makes activation faster; reading it at activation time uses less memory in aggregate and picks up changes to skill files between activations.
+본문은
+- 탐색 시 메모리에 캐시(활성화 빠름) 또는
+- 활성화 시점 재읽기(메모리 절약 + 파일 변경 반영)
+중 하나를 선택하면 됩니다.
 
-The skill's **base directory** (the parent directory of `location`) is needed later to resolve relative paths and enumerate bundled resources — derive it from `location` when needed.
+## 3단계: 모델에 스킬 카탈로그 공개
 
-## Step 3: Disclose available skills to the model
+전체 본문은 로드하지 않고, 사용 가능한 스킬 목록만 모델에 제공합니다(점진적 공개 1단계).
 
-Tell the model what skills exist without loading their full content. This is [tier 1 of progressive disclosure](#the-core-principle-progressive-disclosure).
+### 카탈로그 구성
 
-### Building the skill catalog
-
-For each discovered skill, include `name`, `description`, and optionally `location` (the path to the `SKILL.md` file) in whatever structured format suits your stack — XML, JSON, or a bulleted list all work:
+각 스킬에 `name`, `description`, 필요 시 `location`을 포함합니다(XML/JSON/목록 모두 가능).
 
 ```xml
 <available_skills>
@@ -171,33 +155,23 @@ For each discovered skill, include `name`, `description`, and optionally `locati
     <description>Extract PDF text, fill forms, merge files. Use when handling PDFs.</description>
     <location>/home/user/.agents/skills/pdf-processing/SKILL.md</location>
   </skill>
-  <skill>
-    <name>data-analysis</name>
-    <description>Analyze datasets, generate charts, and create summary reports.</description>
-    <location>/home/user/project/.agents/skills/data-analysis/SKILL.md</location>
-  </skill>
 </available_skills>
 ```
 
-The `location` field serves two purposes: it enables file-read activation (see [Step 4](#step-4-activate-skills)), and it gives the model a base path for resolving relative references in the skill body (like `scripts/evaluate.py`). If your dedicated activation tool provides the skill directory path in its result (see [Structured wrapping](#structured-wrapping) in Step 4), you can omit `location` from the catalog. Otherwise, include it.
+`location`은 파일 기반 활성화와 상대 경로 해석에 유용합니다.
 
-Each skill adds roughly 50-100 tokens to the catalog. Even with dozens of skills installed, the catalog remains compact.
+### 카탈로그 위치
 
-### Where to place the catalog
+일반적으로 두 방식이 쓰입니다.
 
-Two approaches are common:
+- **시스템 프롬프트 섹션**: 가장 단순하고 폭넓게 호환
+- **전용 활성화 도구 설명**: 프롬프트를 깔끔히 유지하고 활성화 로직과 결합
 
-**System prompt section**: Add the catalog as a labeled section in the system prompt, preceded by brief instructions on how to use skills. This is the simplest approach and works with any model that has access to a file-reading tool.
+### 동작 지침
 
-**Tool description**: Embed the catalog in the description of a dedicated skill-activation tool (see [Step 4](#step-4-activate-skills)). This keeps the system prompt clean and naturally couples discovery with activation.
+카탈로그 옆에 "언제/어떻게 스킬을 로드할지"를 짧게 안내합니다.
 
-Both work. System prompt placement is simpler and more broadly compatible; tool description embedding is cleaner when you have a dedicated activation tool.
-
-### Behavioral instructions
-
-Include a short instruction block alongside the catalog telling the model how and when to use skills. The wording depends on which activation mechanism you support (see [Step 4](#step-4-activate-skills)):
-
-**If the model activates skills by reading files:**
+파일 읽기 방식:
 
 ```
 The following skills provide specialized instructions for specific tasks.
@@ -207,7 +181,7 @@ When a skill references relative paths, resolve them against the skill's
 directory (the parent of SKILL.md) and use absolute paths in tool calls.
 ```
 
-**If the model activates skills via a dedicated tool:**
+전용 도구 방식:
 
 ```
 The following skills provide specialized instructions for specific tasks.
@@ -215,121 +189,95 @@ When a task matches a skill's description, call the activate_skill tool
 with the skill's name to load its full instructions.
 ```
 
-Keep these instructions concise. The goal is to tell the model that skills exist and how to load them — the skill content itself provides the detailed instructions once loaded.
+### 필터링
 
-### Filtering
+비활성화/권한 거부/모델 호출 금지 플래그가 있는 스킬은 카탈로그에서 **완전히 숨기세요**. 보여주고 막는 방식은 모델 턴을 낭비합니다.
 
-Some skills should be excluded from the catalog. Common reasons:
+### 스킬이 없을 때
 
-- The user has disabled the skill in settings
-- A permission system denies access to the skill
-- The skill has opted out of model-driven activation (e.g., via a `disable-model-invocation` flag)
+카탈로그와 관련 안내를 아예 생략하세요. 빈 블록이나 빈 옵션 도구 등록은 혼란을 줍니다.
 
-**Hide filtered skills entirely** from the catalog rather than listing them and blocking at activation time. This prevents the model from wasting turns attempting to load skills it can't use.
+## 4단계: 스킬 활성화
 
-### When no skills are available
+모델 또는 사용자가 스킬을 선택하면 전체 지침을 대화 컨텍스트에 주입합니다(점진적 공개 2단계).
 
-If no skills are discovered, omit the catalog and behavioral instructions entirely. Don't show an empty `<available_skills/>` block or register a skill tool with no valid options — this would confuse the model.
+### 모델 주도 활성화
 
-## Step 4: Activate skills
+대부분 구현은 하네스 키워드 매칭보다 모델 판단을 활용합니다.
 
-When the model or user selects a skill, deliver the full instructions into the conversation context. This is [tier 2 of progressive disclosure](#the-core-principle-progressive-disclosure).
+- **파일 읽기 활성화**: 모델이 카탈로그의 `SKILL.md` 경로를 파일 읽기 도구로 직접 로드
+- **전용 도구 활성화** (`activate_skill` 등): 이름 입력 → 스킬 콘텐츠 반환
 
-### Model-driven activation
+전용 도구 장점:
 
-Most implementations rely on the model's own judgment as the activation mechanism, rather than implementing harness-side trigger matching or keyword detection. The model reads the catalog (from [Step 3](#step-3-disclose-available-skills-to-the-model)), decides a skill is relevant to the current task, and loads it.
-
-Two implementation patterns:
-
-**File-read activation**: The model calls its standard file-read tool with the `SKILL.md` path from the catalog. No special infrastructure needed — the agent's existing file-reading capability is sufficient. The model receives the file content as a tool result. This is the simplest approach when the model has file access.
-
-**Dedicated tool activation**: Register a tool (e.g., `activate_skill`) that takes a skill name and returns the content. This is required when the model can't read files directly, and optional (but useful) even when it can. Advantages over raw file reads:
-
-- Control what content is returned — e.g., strip YAML frontmatter or preserve it (see [What the model receives](#what-the-model-receives) below)
-- Wrap content in structured tags for identification during context management
-- List bundled resources (e.g., `references/*`) alongside the instructions
-- Enforce permissions or prompt for user consent
-- Track activation for analytics
+- frontmatter 포함/제외 제어
+- 태그 래핑으로 컨텍스트 관리 용이
+- 번들 리소스 목록 동시 제공
+- 권한/동의 제어
+- 활성화 분석 로깅
 
 <Tip>
-If you use a dedicated activation tool, constrain the `name` parameter to the set of valid skill names (e.g., as an enum in the tool schema). This prevents the model from hallucinating nonexistent skill names. If no skills are available, don't register the tool at all.
+전용 도구를 쓴다면 `name` 파라미터를 실제 스킬 이름 enum으로 제한하세요. 스킬이 없으면 도구 자체를 등록하지 않는 편이 안전합니다.
 </Tip>
 
-### User-explicit activation
+### 사용자 명시 활성화
 
-Users should also be able to activate skills directly, without waiting for the model to decide. The most common pattern is a **slash command or mention syntax** (`/skill-name` or `$skill-name`) that the harness intercepts. The specific syntax is up to you — the key idea is that the harness handles the lookup and injection, so the model receives skill content without needing to take an activation action itself.
+사용자도 `/skill-name` 또는 `$skill-name` 같은 문법으로 직접 활성화할 수 있게 하세요. 자동완성 위젯을 붙이면 발견성이 좋아집니다.
 
-An autocomplete widget (listing available skills as the user types) can also make this discoverable.
+### 모델에 전달할 콘텐츠
 
-### What the model receives
+두 방식 모두 실무에서 사용됩니다.
 
-When a skill is activated, the model receives the skill's instructions. Two options for what exactly that content looks like:
+- **전체 파일 전달**: frontmatter 포함
+- **본문만 전달**: frontmatter 제거 후 Markdown만 반환
 
-**Full file**: The model sees the entire `SKILL.md` including YAML frontmatter. This is the natural outcome with file-read activation, where the model reads the raw file. It's also a valid choice for dedicated tools. The frontmatter may contain fields useful at activation time — for example, [`compatibility`](/specification#compatibility-field) notes environment requirements that could inform how the model executes the skill's instructions.
+### 구조화 래핑
 
-**Body only (frontmatter stripped)**: The harness parses and removes the YAML frontmatter, returning only the markdown instructions. Among existing implementations with dedicated activation tools, most take this approach — stripping the frontmatter after extracting `name` and `description` during discovery.
-
-Both approaches work in practice.
-
-### Structured wrapping
-
-If you use a dedicated activation tool, consider wrapping skill content in identifying tags. For example:
+전용 도구라면 식별 태그 래핑을 권장합니다.
 
 ```xml
 <skill_content name="pdf-processing">
 # PDF Processing
-
-## When to use this skill
-Use this skill when the user needs to work with PDF files...
-
-[rest of SKILL.md body]
-
+...
 Skill directory: /home/user/.agents/skills/pdf-processing
 Relative paths in this skill are relative to the skill directory.
 
 <skill_resources>
   <file>scripts/extract.py</file>
-  <file>scripts/merge.py</file>
   <file>references/pdf-spec-summary.md</file>
 </skill_resources>
 </skill_content>
 ```
 
-This has practical benefits:
+장점:
 
-- The model can clearly distinguish skill instructions from other conversation content
-- The harness can identify skill content during context compaction ([Step 5](#step-5-manage-skill-context-over-time))
-- Bundled resources are surfaced to the model without being eagerly loaded
+- 모델이 스킬 콘텐츠를 일반 대화와 구분 가능
+- 컨텍스트 압축 시 보존 대상 식별 가능
+- 리소스 목록 노출(지연 로딩 유지)
 
-### Listing bundled resources
+### 번들 리소스 목록
 
-When a dedicated activation tool returns skill content, it can also enumerate supporting files (scripts, references, assets) in the skill directory — but it should **not eagerly read them**. The model loads specific files on demand using its file-read tools when the skill's instructions reference them.
+리소스는 목록만 제공하고, 실제 파일 내용은 필요 시 모델이 파일 읽기 도구로 개별 로드하도록 하세요.
 
-For large skill directories, consider capping the listing and noting that it may be incomplete.
+### 권한 allowlist
 
-### Permission allowlisting
+파일 권한 게이트가 있는 에이전트라면 스킬 디렉터리를 allowlist에 추가해 참조 파일 접근 시 매번 승인 팝업이 뜨지 않게 하세요.
 
-If your agent has a permission system that gates file access, **allowlist skill directories** so the model can read bundled resources without triggering user confirmation prompts. Without this, every reference to a bundled script or reference file results in a permission dialog, breaking the flow for skills that include resources beyond the `SKILL.md` itself.
+## 5단계: 세션 중 스킬 컨텍스트 관리
 
-## Step 5: Manage skill context over time
+한 번 주입된 스킬 지침이 세션 내내 효과를 유지하도록 관리합니다.
 
-Once skill instructions are in the conversation context, keep them effective for the duration of the session.
+### 컨텍스트 압축에서 스킬 콘텐츠 보호
 
-### Protect skill content from context compaction
+메시지 요약/삭제 로직이 있다면 스킬 콘텐츠는 prune 대상에서 제외하세요. 중간에 지침이 사라지면 눈에 띄는 오류 없이 성능이 떨어집니다.
 
-If your agent truncates or summarizes older messages when the context window fills up, **exempt skill content from pruning**. Skill instructions are durable behavioral guidance — losing them mid-conversation silently degrades the agent's performance without any visible error. The model continues operating but without the specialized instructions the skill provided.
+- 스킬 도구 출력에 보호 플래그 부여
+- 구조화 태그를 기반으로 보존 대상 식별
 
-Common approaches:
+### 중복 활성화 제거
 
-- Flag skill tool outputs as protected so the pruning algorithm skips them
-- Use the [structured tags](#structured-wrapping) from Step 4 to identify skill content and preserve it during compaction
+세션 내 이미 활성화된 스킬은 재주입을 생략해 중복 지침 축적을 막을 수 있습니다.
 
-### Deduplicate activations
+### 서브에이전트 위임(선택)
 
-Consider tracking which skills have been activated in the current session. If the model (or user) attempts to load a skill that's already in context, you can skip the re-injection to avoid the same instructions appearing multiple times in the conversation.
-
-### Subagent delegation (optional)
-
-This is an advanced pattern only supported by some clients. Instead of injecting skill instructions into the main conversation, the skill is run in a **separate subagent session**. The subagent receives the skill instructions, performs the task, and returns a summary of its work to the main conversation.
-
-This pattern is useful when a skill's workflow is complex enough to benefit from a dedicated, focused session.
+고급 패턴으로, 본 대화에 지침을 넣지 않고 별도 서브에이전트 세션에서 스킬을 실행한 뒤 결과 요약만 메인 대화로 반환할 수 있습니다. 복잡한 스킬 워크플로에서 유용합니다.

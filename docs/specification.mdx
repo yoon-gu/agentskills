@@ -1,38 +1,38 @@
 ---
-title: "Specification"
-description: "The complete format specification for Agent Skills."
+title: "명세"
+description: "Agent Skills의 전체 형식 명세입니다."
 ---
 
-## Directory structure
+## 디렉터리 구조
 
-A skill is a directory containing, at minimum, a `SKILL.md` file:
+스킬은 최소한 `SKILL.md` 파일을 포함하는 디렉터리입니다.
 
 ```
 skill-name/
-├── SKILL.md          # Required: metadata + instructions
-├── scripts/          # Optional: executable code
-├── references/       # Optional: documentation
-├── assets/           # Optional: templates, resources
-└── ...               # Any additional files or directories
+├── SKILL.md          # 필수: 메타데이터 + 지침
+├── scripts/          # 선택 사항: 실행 가능한 코드
+├── references/       # 선택 사항: 문서
+├── assets/           # 선택 사항: 템플릿, 리소스
+└── ...               # 추가 파일/디렉터리 자유롭게 포함 가능
 ```
 
-## `SKILL.md` format
+## `SKILL.md` 형식
 
-The `SKILL.md` file must contain YAML frontmatter followed by Markdown content.
+`SKILL.md` 파일은 YAML 프론트매터 뒤에 Markdown 본문이 와야 합니다.
 
-### Frontmatter
+### 프론트매터
 
-| Field | Required | Constraints |
+| 필드 | 필수 여부 | 제약 |
 |-------|----------|-------------|
-| `name` | Yes | Max 64 characters. Lowercase letters, numbers, and hyphens only. Must not start or end with a hyphen. |
-| `description` | Yes | Max 1024 characters. Non-empty. Describes what the skill does and when to use it. |
-| `license` | No | License name or reference to a bundled license file. |
-| `compatibility` | No | Max 500 characters. Indicates environment requirements (intended product, system packages, network access, etc.). |
-| `metadata` | No | Arbitrary key-value mapping for additional metadata. |
-| `allowed-tools` | No | Space-delimited list of pre-approved tools the skill may use. (Experimental) |
+| `name` | 예 | 최대 64자. 소문자, 숫자, 하이픈만 허용. 시작/끝에 하이픈 불가. |
+| `description` | 예 | 최대 1024자. 비어 있을 수 없음. 스킬 기능과 사용 시점을 설명해야 함. |
+| `license` | 아니오 | 라이선스 이름 또는 포함된 라이선스 파일 참조. |
+| `compatibility` | 아니오 | 최대 500자. 환경 요구사항(대상 제품, 시스템 패키지, 네트워크 접근 등) 명시. |
+| `metadata` | 아니오 | 추가 메타데이터를 위한 임의의 키-값 매핑. |
+| `allowed-tools` | 아니오 | 스킬이 사용할 수 있도록 사전 승인된 도구 목록(공백 구분). (실험적) |
 
 <Card>
-**Minimal example:**
+**최소 예시:**
 
 ```markdown SKILL.md
 ---
@@ -41,7 +41,7 @@ description: A description of what this skill does and when to use it.
 ---
 ```
 
-**Example with optional fields:**
+**선택 필드를 포함한 예시:**
 
 ```markdown SKILL.md
 ---
@@ -55,17 +55,17 @@ metadata:
 ```
 </Card>
 
-#### `name` field
+#### `name` 필드
 
-The required `name` field:
-- Must be 1-64 characters
-- May only contain unicode lowercase alphanumeric characters (`a-z`) and hyphens (`-`)
-- Must not start or end with a hyphen (`-`)
-- Must not contain consecutive hyphens (`--`)
-- Must match the parent directory name
+필수 `name` 필드 규칙:
+- 1~64자여야 합니다.
+- 유니코드 소문자 영숫자(`a-z`)와 하이픈(`-`)만 포함할 수 있습니다.
+- 하이픈(`-`)으로 시작하거나 끝나면 안 됩니다.
+- 연속된 하이픈(`--`)을 포함하면 안 됩니다.
+- 상위 디렉터리 이름과 일치해야 합니다.
 
 <Card>
-**Valid examples:**
+**유효한 예시:**
 ```yaml
 name: pdf-processing
 ```
@@ -76,59 +76,59 @@ name: data-analysis
 name: code-review
 ```
 
-**Invalid examples:**
+**유효하지 않은 예시:**
 ```yaml
-name: PDF-Processing  # uppercase not allowed
+name: PDF-Processing  # 대문자 불가
 ```
 ```yaml
-name: -pdf  # cannot start with hyphen
+name: -pdf  # 하이픈으로 시작 불가
 ```
 ```yaml
-name: pdf--processing  # consecutive hyphens not allowed
+name: pdf--processing  # 연속 하이픈 불가
 ```
 </Card>
 
-#### `description` field
+#### `description` 필드
 
-The required `description` field:
-- Must be 1-1024 characters
-- Should describe both what the skill does and when to use it
-- Should include specific keywords that help agents identify relevant tasks
+필수 `description` 필드 규칙:
+- 1~1024자여야 합니다.
+- 스킬이 무엇을 하고 언제 사용해야 하는지를 함께 설명해야 합니다.
+- 에이전트가 관련 작업을 식별하는 데 도움이 되는 구체적 키워드를 포함하는 것이 좋습니다.
 
 <Card>
-**Good example:**
+**좋은 예시:**
 ```yaml
 description: Extracts text and tables from PDF files, fills PDF forms, and merges multiple PDFs. Use when working with PDF documents or when the user mentions PDFs, forms, or document extraction.
 ```
 
-**Poor example:**
+**좋지 않은 예시:**
 ```yaml
 description: Helps with PDFs.
 ```
 </Card>
 
-#### `license` field
+#### `license` 필드
 
-The optional `license` field:
-- Specifies the license applied to the skill
-- We recommend keeping it short (either the name of a license or the name of a bundled license file)
+선택 `license` 필드:
+- 스킬에 적용되는 라이선스를 지정합니다.
+- 짧게 유지하는 것을 권장합니다(라이선스 이름 또는 포함된 라이선스 파일명).
 
 <Card>
-**Example:**
+**예시:**
 ```yaml
 license: Proprietary. LICENSE.txt has complete terms
 ```
 </Card>
 
-#### `compatibility` field
+#### `compatibility` 필드
 
-The optional `compatibility` field:
-- Must be 1-500 characters if provided
-- Should only be included if your skill has specific environment requirements
-- Can indicate intended product, required system packages, network access needs, etc.
+선택 `compatibility` 필드:
+- 제공하는 경우 1~500자여야 합니다.
+- 스킬에 특정 환경 요구사항이 있을 때만 포함하는 것이 좋습니다.
+- 대상 제품, 필요한 시스템 패키지, 네트워크 접근 요구사항 등을 나타낼 수 있습니다.
 
 <Card>
-**Examples:**
+**예시:**
 ```yaml
 compatibility: Designed for Claude Code (or similar products)
 ```
@@ -141,18 +141,18 @@ compatibility: Requires Python 3.14+ and uv
 </Card>
 
 <Note>
-Most skills do not need the `compatibility` field.
+대부분의 스킬은 `compatibility` 필드가 필요하지 않습니다.
 </Note>
 
-#### `metadata` field
+#### `metadata` 필드
 
-The optional `metadata` field:
-- A map from string keys to string values
-- Clients can use this to store additional properties not defined by the Agent Skills spec
-- We recommend making your key names reasonably unique to avoid accidental conflicts
+선택 `metadata` 필드:
+- 문자열 키와 문자열 값으로 이루어진 맵입니다.
+- 클라이언트가 Agent Skills 명세에 정의되지 않은 추가 속성을 저장할 때 사용할 수 있습니다.
+- 우발적 충돌을 피하려면 키 이름을 충분히 고유하게 만드는 것을 권장합니다.
 
 <Card>
-**Example:**
+**예시:**
 ```yaml
 metadata:
   author: example-org
@@ -160,70 +160,70 @@ metadata:
 ```
 </Card>
 
-#### `allowed-tools` field
+#### `allowed-tools` 필드
 
-The optional `allowed-tools` field:
-- A space-delimited list of tools that are pre-approved to run
-- Experimental. Support for this field may vary between agent implementations
+선택 `allowed-tools` 필드:
+- 실행이 사전 승인된 도구의 공백 구분 목록입니다.
+- 실험적 기능이며, 에이전트 구현에 따라 지원 여부가 다를 수 있습니다.
 
 <Card>
-**Example:**
+**예시:**
 ```yaml
 allowed-tools: Bash(git:*) Bash(jq:*) Read
 ```
 </Card>
 
-### Body content
+### 본문 내용
 
-The Markdown body after the frontmatter contains the skill instructions. There are no format restrictions. Write whatever helps agents perform the task effectively.
+프론트매터 이후의 Markdown 본문에는 스킬 지침이 들어갑니다. 형식 제한은 없습니다. 에이전트가 작업을 효과적으로 수행하는 데 도움이 되는 내용을 작성하세요.
 
-Recommended sections:
-- Step-by-step instructions
-- Examples of inputs and outputs
-- Common edge cases
+권장 섹션:
+- 단계별 지침
+- 입력/출력 예시
+- 자주 발생하는 엣지 케이스
 
-Note that the agent will load this entire file once it's decided to activate a skill. Consider splitting longer `SKILL.md` content into referenced files.
+에이전트는 스킬 활성화를 결정하면 이 파일 전체를 로드합니다. `SKILL.md`가 길다면 참조 파일로 분리하는 것을 고려하세요.
 
-## Optional directories
+## 선택 디렉터리
 
 ### `scripts/`
 
-Contains executable code that agents can run. Scripts should:
-- Be self-contained or clearly document dependencies
-- Include helpful error messages
-- Handle edge cases gracefully
+에이전트가 실행할 수 있는 코드를 담습니다. 스크립트는 다음을 충족하는 것이 좋습니다.
+- 자체적으로 실행 가능하거나 의존성을 명확히 문서화
+- 이해하기 쉬운 오류 메시지 제공
+- 엣지 케이스를 안정적으로 처리
 
-Supported languages depend on the agent implementation. Common options include Python, Bash, and JavaScript.
+지원 언어는 에이전트 구현에 따라 다릅니다. 일반적으로 Python, Bash, JavaScript가 사용됩니다.
 
 ### `references/`
 
-Contains additional documentation that agents can read when needed:
-- `REFERENCE.md` - Detailed technical reference
-- `FORMS.md` - Form templates or structured data formats
-- Domain-specific files (`finance.md`, `legal.md`, etc.)
+에이전트가 필요할 때 읽을 수 있는 추가 문서를 담습니다.
+- `REFERENCE.md` - 상세 기술 레퍼런스
+- `FORMS.md` - 폼 템플릿 또는 구조화된 데이터 형식
+- 도메인 특화 파일(`finance.md`, `legal.md` 등)
 
-Keep individual [reference files](#file-references) focused. Agents load these on demand, so smaller files mean less use of context.
+개별 [참조 파일](#파일-참조)은 주제를 좁혀 작성하세요. 에이전트는 필요 시에만 로드하므로, 파일이 작을수록 컨텍스트 사용량이 줄어듭니다.
 
 ### `assets/`
 
-Contains static resources:
-- Templates (document templates, configuration templates)
-- Images (diagrams, examples)
-- Data files (lookup tables, schemas)
+정적 리소스를 담습니다.
+- 템플릿(문서 템플릿, 설정 템플릿)
+- 이미지(다이어그램, 예시)
+- 데이터 파일(룩업 테이블, 스키마)
 
-## Progressive disclosure
+## 점진적 공개
 
-Skills should be structured for efficient use of context:
+스킬은 컨텍스트를 효율적으로 사용하도록 구성하는 것이 좋습니다.
 
-1. **Metadata** (~100 tokens): The `name` and `description` fields are loaded at startup for all skills
-2. **Instructions** (< 5000 tokens recommended): The full `SKILL.md` body is loaded when the skill is activated
-3. **Resources** (as needed): Files (e.g. those in `scripts/`, `references/`, or `assets/`) are loaded only when required
+1. **메타데이터** (~100 토큰): 모든 스킬의 `name`과 `description`은 시작 시 로드됩니다.
+2. **지침** (권장 < 5000 토큰): 스킬이 활성화될 때 `SKILL.md` 본문 전체가 로드됩니다.
+3. **리소스** (필요 시): `scripts/`, `references/`, `assets/` 등의 파일은 필요할 때만 로드됩니다.
 
-Keep your main `SKILL.md` under 500 lines. Move detailed reference material to separate files.
+메인 `SKILL.md`는 500줄 이내로 유지하세요. 상세 레퍼런스 자료는 별도 파일로 분리하세요.
 
-## File references
+## 파일 참조
 
-When referencing other files in your skill, use relative paths from the skill root:
+스킬에서 다른 파일을 참조할 때는 스킬 루트 기준의 상대 경로를 사용하세요.
 
 ```markdown SKILL.md
 See [the reference guide](references/REFERENCE.md) for details.
@@ -232,14 +232,14 @@ Run the extraction script:
 scripts/extract.py
 ```
 
-Keep file references one level deep from `SKILL.md`. Avoid deeply nested reference chains.
+파일 참조는 `SKILL.md`에서 한 단계 깊이를 유지하세요. 깊게 중첩된 참조 체인은 피하세요.
 
-## Validation
+## 검증
 
-Use the [skills-ref](https://github.com/agentskills/agentskills/tree/main/skills-ref) reference library to validate your skills:
+[skills-ref](https://github.com/agentskills/agentskills/tree/main/skills-ref) 레퍼런스 라이브러리를 사용해 스킬을 검증할 수 있습니다.
 
 ```bash
 skills-ref validate ./my-skill
 ```
 
-This checks that your `SKILL.md` frontmatter is valid and follows all naming conventions.
+이 명령은 `SKILL.md` 프론트매터가 유효한지, 그리고 모든 네이밍 규칙을 따르는지 확인합니다.

@@ -1,0 +1,41 @@
+:root {
+  --ifm-color-primary: #3f5e8c;
+  --ifm-color-primary-dark: #39557e;
+  --ifm-color-primary-darker: #354f77;
+  --ifm-color-primary-darkest: #2c4162;
+  --ifm-color-primary-light: #45679a;
+  --ifm-color-primary-lighter: #496da1;
+  --ifm-color-primary-lightest: #5680bc;
+}
+
+.mdx-box {
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 10px;
+  padding: 1rem;
+  margin: 1rem 0;
+}
+
+.mdx-card-group {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+  margin: 1rem 0;
+}
+
+.mdx-card {
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 10px;
+  padding: 1rem;
+}
+
+.mdx-tabs {
+  display: grid;
+  gap: 1rem;
+  margin: 1rem 0;
+}
+
+.mdx-tab {
+  border: 1px dashed var(--ifm-color-emphasis-300);
+  border-radius: 8px;
+  padding: 0.75rem;
+}

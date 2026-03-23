@@ -7,3 +7,7 @@
 
 # Dependencies
 node_modules/
+
+# Docusaurus build artifacts
+.docusaurus/
+build/

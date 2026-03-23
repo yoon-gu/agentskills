@@ -1,7 +1,18 @@
 {
   "name": "agentskills",
   "private": true,
+  "version": "1.0.0",
   "scripts": {
-    "dev": "cd docs && npx mint dev"
+    "start": "docusaurus start",
+    "build": "docusaurus build",
+    "serve": "docusaurus serve",
+    "clear": "docusaurus clear",
+    "dev": "docusaurus start"
+  },
+  "dependencies": {
+    "@docusaurus/core": "^3.9.2",
+    "@docusaurus/preset-classic": "^3.9.2",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
   }
 }
